@@ -7,7 +7,7 @@ name = "twinmem4d"
 dynamic = ["version"]
 description = "Twin-aware object/event memory on 4D scene graphs for history-dependent tabletop instructions"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"   # numpy<2 below has wheels only up to Python 3.12
 dependencies = [
     "numpy<2.0",            # DAAAM's pinned stack (boxmot fork, DAM fork) needs numpy 1.x
     "scipy",

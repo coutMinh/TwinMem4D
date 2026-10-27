@@ -6,6 +6,16 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="${PYTHON:-python}"
+
+# DAAAM's stack needs numpy 1.x, which ships wheels only up to Python 3.12; on 3.13+ pip builds numpy
+# from source and fails after minutes. Stop early with the fix instead.
+if ! "$PY" -c 'import sys; sys.exit(not ((3, 10) <= sys.version_info[:2] <= (3, 12)))'; then
+  echo "ERROR: $("$PY" -V 2>&1) at $PY; TwinMem4D needs Python 3.10-3.12 (numpy<2 has no wheels for 3.13+)." >&2
+  echo "Restart the notebook so its venv is rebuilt with requires-python '>=3.10,<3.13'," >&2
+  echo "or select Python 3.12 in the molab environment settings." >&2
+  exit 1
+fi
+
 MARK="$REPO/.molab_installed"
 STAMP="$(sha256sum "$REPO/pyproject.toml" | cut -c1-16)"
 
