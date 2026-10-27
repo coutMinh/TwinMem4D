@@ -56,9 +56,17 @@ python -m venv .venv && .venv/bin/pip install "numpy<2" "scipy<1.15" opencv-pyth
 .venv/bin/pytest -q
 ```
 
-GPU (molab, NVIDIA Blackwell, CUDA 12.8): `PYTHON=$(which python) bash scripts/molab_install.sh`.
-The molab notebook lives outside this repository: it clones the repo, calls this script, and
-then only calls `twinmem4d` functions; every long step is one of the commands below, run detached.
+molab uses two Python environments, because its kernel is fixed (Python 3.13, numpy 2) and DAAAM's
+GPU stack needs numpy 1.x, which has no wheels for Python 3.13:
+
+| environment | install | runs |
+|---|---|---|
+| notebook kernel (molab's Python) | `PYTHON=$(which python) bash scripts/molab_install.sh` | core: data, memory, evaluation, tables |
+| `$TWINMEM_WORK/venv312` (Python 3.12, uv) | `GPU_VENV=... CKPT=... bash scripts/molab_install_gpu.sh` | every GPU job of the CLI below |
+
+The core is tested on Python 3.12 + numpy 1.26 and on Python 3.13 + numpy 2. The molab notebook
+lives outside this repository: it clones the repo, installs the core into the kernel, and runs every
+long step as one of the commands below, detached, with `$TWINMEM_WORK/venv312/bin/python`.
 
 ## Command line (for unattended runs)
 

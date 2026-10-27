@@ -131,6 +131,24 @@ def camera_gate(depth_frame: np.ndarray, camera: CameraModel, cfg: ConvertConfig
             "passed_plane": plane["inlier_rms_m"] < rms_max_m}
 
 
+def camera_gate_report(hdf5_path: PathLike, cfg: ConvertConfig, out_path: PathLike, demo_index: int = 100,
+                       camera: Optional[CameraModel] = None) -> Dict:
+    """L2 end to end: camera from the task's LIBERO env (unless given), plane gate on frame 0 of one val demo.
+
+    Writes ``{"camera": camera_info, **gate}`` to ``out_path``; L3 reads the camera back from that file.
+    """
+    from .libero_mem import data_attrs, list_demos, load_demo, open_hdf5
+
+    f = open_hdf5(hdf5_path)
+    camera = camera or camera_from_libero_env(data_attrs(f)["env_args"])
+    demo = list_demos(f)[demo_index]
+    gate = camera_gate(load_demo(f, demo, modalities=("depth",), frames=slice(0, 1))["depth"][0], camera, cfg)
+    report = {"camera": camera.to_camera_info(), "demo": demo, **gate}
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(out_path).write_text(json.dumps(report, indent=2))
+    return report
+
+
 def object_extents(episode: Episode) -> Dict[str, Optional[List[float]]]:
     """Axis-aligned 3D extent (m) of each GT object at its largest visible frame; bowls/plates should be ~0.1-0.2 m."""
     gt = episode.gt

@@ -55,6 +55,11 @@ def _parser() -> argparse.ArgumentParser:
     s = sub.add_parser("libero-download", help="download LIBERO-Mem files (HDF5, metainfo.json)")
     s.add_argument("--files", nargs="+", required=True)
     s.add_argument("--dest", required=True)
+    s = sub.add_parser("camera", help="L2: agentview camera from the LIBERO env + table-plane gate")
+    s.add_argument("--hdf5", required=True, help="task HDF5 (its data.attrs env_args build the env)")
+    s.add_argument("--convert-config", required=True, help="configs/convert_libero.yaml (flip, depth mode)")
+    s.add_argument("--out", required=True, help="docs/l2_camera_gate.json")
+    s.add_argument("--demo-index", type=int, default=100, help="first val demo (paper's 100/20 split)")
     return p
 
 
@@ -75,6 +80,15 @@ def main(argv=None):
 
         for path in download(args.files, args.dest):
             print(path)
+        return
+    if args.cmd == "camera":
+        import json
+
+        from .data.convert import ConvertConfig
+        from .data.evidence import camera_gate_report
+
+        report = camera_gate_report(args.hdf5, load_config(ConvertConfig, args.convert_config), args.out, args.demo_index)
+        print(json.dumps({k: v for k, v in report.items() if k != "camera"}, indent=2))
         return
     if args.cmd == "refcocog":
         print(Path(pipelines.run_refcocog(args.ref_dir, args.results, notes=args.notes)))

@@ -1,32 +1,24 @@
 #!/usr/bin/env bash
-# Install TwinMem4D + DAAAM's GPU stack into the given Python (the molab notebook kernel).
-# Idempotent: skips when pyproject.toml is unchanged and the key imports work.
-# Usage: PYTHON=/path/to/python bash scripts/molab_install.sh
+# Install the TwinMem4D core (data, memory, evaluation, tables) into the molab notebook kernel.
+# The kernel's Python/numpy are molab's (3.13, numpy 2); the DAAAM GPU stack goes into a separate
+# Python 3.12 venv, see molab_install_gpu.sh. Idempotent: skips when pyproject.toml is unchanged.
+# Usage: PYTHON=/path/to/kernel/python bash scripts/molab_install.sh
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="${PYTHON:-python}"
-
-# DAAAM's stack needs numpy 1.x, which ships wheels only up to Python 3.12; on 3.13+ pip builds numpy
-# from source and fails after minutes. Stop early with the fix instead.
-if ! "$PY" -c 'import sys; sys.exit(not ((3, 10) <= sys.version_info[:2] <= (3, 12)))'; then
-  echo "ERROR: $("$PY" -V 2>&1) at $PY; TwinMem4D needs Python 3.10-3.12 (numpy<2 has no wheels for 3.13+)." >&2
-  echo "Restart the notebook so its venv is rebuilt with requires-python '>=3.10,<3.13'," >&2
-  echo "or select Python 3.12 in the molab environment settings." >&2
-  exit 1
-fi
-
-MARK="$REPO/.molab_installed"
+MARK="$REPO/.molab_installed_kernel"
 STAMP="$(sha256sum "$REPO/pyproject.toml" | cut -c1-16)"
 
-if [ -f "$MARK" ] && [ "$(cat "$MARK")" = "$STAMP" ] && \
-   "$PY" -c "import twinmem4d, torch, boxmot, dam, open_clip, sentence_transformers, cvxpy" 2>/dev/null; then
-  echo "TwinMem4D environment already installed ($STAMP)"; exit 0
+if [ -f "$MARK" ] && [ "$(cat "$MARK")" = "$STAMP" ] && "$PY" -c "import twinmem4d, h5py, spark_dsg" 2>/dev/null; then
+  echo "TwinMem4D core already installed in the kernel ($STAMP)"; exit 0
 fi
 
-"$PY" -m pip install --upgrade pip
-# Blackwell (sm_120) needs CUDA 12.8 wheels; same pins as DAAAM/requirements.txt
-"$PY" -m pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128
-"$PY" -m pip install -e "$REPO[gpu,data,dsg,test]"
+# Core only: numpy is left as molab ships it (no numpy<2 pin here)
+if command -v uv >/dev/null; then
+  uv pip install --python "$PY" -e "$REPO[data,dsg,test]"
+else
+  "$PY" -m pip install -e "$REPO[data,dsg,test]"
+fi
 echo "$STAMP" > "$MARK"
-"$PY" -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'gpu', torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)"
+"$PY" -c "import sys, numpy, twinmem4d; print('kernel python', sys.version.split()[0], 'numpy', numpy.__version__)"

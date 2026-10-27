@@ -17,3 +17,6 @@ dist/
 *.hdf5
 
 .env
+
+# install stamps written by scripts/molab_install*.sh (would mark every registered run "-dirty")
+/.molab_installed*

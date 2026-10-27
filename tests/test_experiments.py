@@ -30,6 +30,15 @@ def test_probe_writes_decision(tmp_path):
     assert json.loads((tmp_path / "docs" / "molab_probe.json").read_text())["decision"] == probe["decision"]
 
 
+def test_probe_virtual_filesystem_is_unknown(tmp_path, monkeypatch):
+    import shutil
+    from collections import namedtuple
+
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(shutil, "disk_usage", lambda p: usage(8 * 2**60, 10 * 2**20, 8 * 2**60))   # molab: 8 EiB
+    assert probe_machine(tmp_path)["decision"]["hdf5_full_download"] is None
+
+
 def test_l1_evidence(tmp_path):
     rng = np.random.default_rng(0)
     arrays = {"rgb": rng.integers(0, 255, (10, 16, 16, 3), dtype=np.uint8),
@@ -57,6 +66,20 @@ def test_l2_camera_gate_on_flat_table():
     gate = evidence.camera_gate(np.ones((cam.height, cam.width), np.float32), cam,
                                 ConvertConfig(flip_vertical=False, depth_mode="metric"))
     assert gate["passed_plane"] and gate["depth_range_m"] == [1.0, 1.0]
+
+
+def test_l2_camera_gate_report(tmp_path):
+    import h5py
+
+    cam = look_down_camera()
+    with h5py.File(tmp_path / "t7.hdf5", "w") as f:
+        for i in (0, 1):
+            f[f"data/demo_{i}/obs/agentview_depth"] = np.ones((2, cam.height, cam.width, 1), np.float32)
+    report = evidence.camera_gate_report(tmp_path / "t7.hdf5", ConvertConfig(flip_vertical=False, depth_mode="metric"),
+                                         tmp_path / "docs" / "l2.json", demo_index=1, camera=cam)
+    saved = json.loads((tmp_path / "docs" / "l2.json").read_text())
+    assert report["demo"] == "demo_1" and saved["passed_plane"]
+    assert np.allclose(saved["camera"]["intrinsics"], cam.K)
 
 
 def test_convert_tasks_is_resumable(tmp_path):

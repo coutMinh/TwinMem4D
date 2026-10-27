@@ -104,10 +104,14 @@ def _short(v: Any, n: int = 200) -> Any:
 
 def download(filenames: Iterable[str], local_dir: PathLike, revision: str = "main") -> List[str]:
     """Fetch dataset files into ``local_dir`` (resumable; hf_transfer when installed)."""
+    import importlib.util
     import os
 
+    # Only with the package present: older huggingface_hub raises if the flag is set without it,
+    # and huggingface_hub >= 1.0 dropped it for hf-xet
+    if importlib.util.find_spec("hf_transfer"):
+        os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
     from huggingface_hub import hf_hub_download
 
-    os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
     return [hf_hub_download(HF_REPO, name, repo_type="dataset", revision=revision, local_dir=str(local_dir))
             for name in filenames]

@@ -7,9 +7,12 @@ name = "twinmem4d"
 dynamic = ["version"]
 description = "Twin-aware object/event memory on 4D scene graphs for history-dependent tabletop instructions"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"   # numpy<2 below has wheels only up to Python 3.12
+requires-python = ">=3.10"
+# Core = data, memory, evaluation, tables: runs in the molab kernel (Python 3.13, numpy 2).
+# The DAAAM GPU stack (extra `gpu`) needs numpy 1.x, whose wheels stop at Python 3.12, so it lives in
+# a separate Python 3.12 venv (scripts/molab_install_gpu.sh) that runs every `twinmem4d.cli` GPU job.
 dependencies = [
-    "numpy<2.0",            # DAAAM's pinned stack (boxmot fork, DAM fork) needs numpy 1.x
+    "numpy",
     "scipy",
     "opencv-python-headless",
     "pillow",
@@ -22,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 # GPU stack on molab; mirrors DAAAM/requirements.txt (torch cu128 is installed separately, see README)
 gpu = [
+    "numpy<2.0",            # DAAAM's pinned stack (boxmot fork, DAM fork) needs numpy 1.x -> Python <= 3.12
     "boxmot @ git+https://github.com/nicogorlo/boxmot.git",
     "dam @ git+https://github.com/nicogorlo/describe-anything-batch.git",
     "ultralytics",
@@ -32,7 +36,7 @@ gpu = [
     "cvxpy",
     "cvxopt",
 ]
-data = ["fsspec", "aiohttp", "huggingface_hub[hf_transfer]"]
+data = ["fsspec", "aiohttp", "huggingface_hub"]
 dsg = ["spark-dsg==1.1.3"]
 test = ["pytest", "spark-dsg==1.1.3"]
 
