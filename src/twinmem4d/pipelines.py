@@ -123,3 +123,31 @@ def run_vlm_baselines(episodes: Sequence[Episode], frontend_run: PathLike, vlm_c
         run.metrics = {"accuracy": acc.to_dict("records"), "cost": cost.to_dict("records"), "ks": list(ks)}
         write_json(run.run_dir / "vlm_config.json", vlm_cfg)
     return run.run_dir
+
+
+def run_dam_curve(episodes: Sequence[Episode], frontend_run: PathLike, results_dir: PathLike, repeats: int = 3,
+                  notes: str = "") -> Path:
+    """R2 on 128 real masks of a front-end run; rows in ``dam_batch_curve.csv``."""
+    from .repro.dam_batch_curve import batch_curve, curve_summary, sample_items
+    from .third_party.daaam.dam import DAMAgent
+
+    with Run(Path(results_dir), stage="repro_dam_curve", backend_mode="none", data_manifest_hash=_manifest(episodes),
+             notes=notes or f"masks from {Path(frontend_run).name}") as run:
+        rows = batch_curve(DAMAgent(), sample_items(episodes, frontend_run), repeats=repeats)
+        pd.DataFrame(rows).to_csv(run.run_dir / "dam_batch_curve.csv", index=False)
+        run.metrics = curve_summary(rows)
+    return run.run_dir
+
+
+def run_refcocog(ref_dir: PathLike, results_dir: PathLike, split: str = "val", notes: str = "") -> Path:
+    """R3: refCOCOg (umd) retrieval; fetches the annotations and the needed COCO images first (resumable)."""
+    from .repro import refcocog as rc
+    from .third_party.daaam.dam import DAMAgent
+
+    files = rc.fetch_annotations(ref_dir)
+    subjects = rc.load_refcocog_umd(files["refs"], files["instances"], split)
+    images = rc.CocoImages(Path(ref_dir) / "train2014")
+    images.fetch([s.image_id for s in subjects])
+    with Run(Path(results_dir), stage="repro_refcocog", backend_mode="none", notes=notes or f"refCOCOg umd {split}") as run:
+        run.metrics = rc.run_retrieval(DAMAgent(), subjects, images, cache_path=Path(ref_dir) / "dam_descriptions.json")
+    return run.run_dir

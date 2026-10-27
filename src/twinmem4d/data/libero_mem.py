@@ -100,3 +100,14 @@ def _short(v: Any, n: int = 200) -> Any:
     if isinstance(v, np.ndarray):
         return v.tolist() if v.size <= 16 else f"array{list(v.shape)}"
     return v
+
+
+def download(filenames: Iterable[str], local_dir: PathLike, revision: str = "main") -> List[str]:
+    """Fetch dataset files into ``local_dir`` (resumable; hf_transfer when installed)."""
+    import os
+
+    from huggingface_hub import hf_hub_download
+
+    os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
+    return [hf_hub_download(HF_REPO, name, repo_type="dataset", revision=revision, local_dir=str(local_dir))
+            for name in filenames]

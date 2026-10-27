@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence
 
 import cv2
 import numpy as np
@@ -86,3 +86,29 @@ def convert_demo(
         "source": source or {},
     })
     return Episode(out)
+
+
+def convert_tasks(task_files: Mapping[str, Optional[PathLike]], seg_ids_root: PathLike, camera: CameraModel,
+                  out_root: PathLike, cfg: ConvertConfig) -> List[str]:
+    """L3: every demo with an exported seg-id table ``<seg_ids_root>/<task>/<demo>.json`` -> ``<out_root>/<task>_<demo>``.
+
+    Episodes that already have ``meta.json`` are skipped, so the call is resumable.
+    """
+    import json
+
+    from .libero_mem import load_demo, open_hdf5
+
+    converted = []
+    for task, path in task_files.items():
+        if path is None:
+            continue
+        f = open_hdf5(path)
+        for ids_file in sorted((Path(seg_ids_root) / task).glob("*.json")):
+            out = Path(out_root) / f"{task}_{ids_file.stem}"
+            if (out / "meta.json").exists():
+                continue
+            seg_ids = json.loads(ids_file.read_text())["seg_ids"]
+            convert_demo(load_demo(f, ids_file.stem), camera, out, cfg, seg_ids=seg_ids,
+                         source={"task": task, "demo": ids_file.stem, "file": str(path)})
+            converted.append(out.name)
+    return converted

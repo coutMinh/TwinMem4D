@@ -20,6 +20,7 @@ from ..io_utils import PathLike
 from ..third_party.daaam.embedding import get_combined_embedding
 
 COCO_URL = "http://images.cocodataset.org/train2014/COCO_train2014_{:012d}.jpg"
+REFER_URL = "https://bvisionweb1.cs.unc.edu/licheng/referit/data/refcocog.zip"   # VERIFY; else place the files by hand
 REPORTED = {  # DAAAM paper Table 4, refCOCOg rows (Top-1 / Top-5 / Top-10, %)
     "CLIP": (19.59, 41.12, 52.51),
     "DAM+ST": (18.07, 39.53, 51.18),
@@ -118,3 +119,64 @@ def describe_subjects(dam, subjects: List[Subject], image_loader, cache_path: Op
             if cache_path:
                 Path(cache_path).write_text(json.dumps(cache))
     return cache
+
+
+def fetch_annotations(ref_dir: PathLike, url: str = REFER_URL) -> Dict[str, Path]:
+    """Download and unzip the ``refer`` release once; returns the two files ``load_refcocog_umd`` needs."""
+    import urllib.request
+    import zipfile
+
+    ref_dir = Path(ref_dir)
+    files = {"refs": ref_dir / "refcocog" / "refs(umd).p", "instances": ref_dir / "refcocog" / "instances.json"}
+    if not all(p.exists() for p in files.values()):
+        ref_dir.mkdir(parents=True, exist_ok=True)
+        archive = ref_dir / "refcocog.zip"
+        urllib.request.urlretrieve(url, archive)
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(ref_dir)
+    return files
+
+
+class CocoImages:
+    """COCO train2014 images fetched one by one (only those the subjects need), cached on disk."""
+
+    def __init__(self, image_dir: PathLike):
+        self.dir = Path(image_dir)
+        self.dir.mkdir(parents=True, exist_ok=True)
+
+    def path(self, image_id: int) -> Path:
+        return self.dir / f"COCO_train2014_{image_id:012d}.jpg"
+
+    def fetch(self, image_ids, workers: int = 16) -> int:
+        import urllib.request
+        from concurrent.futures import ThreadPoolExecutor
+
+        def one(image_id: int) -> bool:
+            p = self.path(image_id)
+            if not p.exists():
+                urllib.request.urlretrieve(COCO_URL.format(image_id), p)
+            return p.exists()
+
+        with ThreadPoolExecutor(workers) as pool:
+            return sum(pool.map(one, sorted(set(image_ids))))
+
+    def __call__(self, image_id: int) -> np.ndarray:
+        return cv2.cvtColor(cv2.imread(str(self.path(image_id))), cv2.COLOR_BGR2RGB)
+
+
+def run_retrieval(dam, subjects: List[Subject], image_loader, cache_path: Optional[PathLike] = None,
+                  clip_model: str = "ViT-L-14", clip_pretrained: str = "openai",
+                  sentence_model: str = "sentence-transformers/sentence-t5-xl") -> Dict:
+    """Describe every subject with DAM, embed subjects and expressions, score Top-1/5/10 for the three rows."""
+    from ..third_party.daaam.embedding import CLIPHandler, SentenceEmbeddingHandler
+
+    descriptions = describe_subjects(dam, subjects, image_loader, cache_path=cache_path)
+    clip = CLIPHandler(clip_model, clip_pretrained)
+    st = SentenceEmbeddingHandler(sentence_model)
+    subj_clip = clip.image_features([crop_box(image_loader(s.image_id), s.bbox) for s in subjects])
+    subj_sent = st.embed_descriptions([descriptions[s.ref_id] or "unknown" for s in subjects])
+    queries = [(e, i) for i, s in enumerate(subjects) for e in s.expressions]
+    scores = retrieval_scores(subj_clip, subj_sent, clip.text_features([e for e, _ in queries]),
+                              st.embed([e for e, _ in queries]), np.array([i for _, i in queries]))
+    return {"scores": scores, "reported": REPORTED, "protocol_guesses": PROTOCOL_GUESSES,
+            "n_subjects": len(subjects), "n_queries": len(queries)}
