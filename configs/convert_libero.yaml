@@ -1,0 +1,5 @@
+# Fields of twinmem4d.data.convert.ConvertConfig. Every value is decided by the L1/L2 evidence.
+flip_vertical: true            # VERIFY: robosuite renders bottom row first
+depth_mode: zbuffer            # VERIFY: "zbuffer" (normalised [0, 1]) or "metric"
+fps: 20.0                      # VERIFY: LIBERO control rate
+keep_categories: [bowl, plate]

@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twinmem4d"
+dynamic = ["version"]
+description = "Twin-aware object/event memory on 4D scene graphs for history-dependent tabletop instructions"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy<2.0",            # DAAAM's pinned stack (boxmot fork, DAM fork) needs numpy 1.x
+    "scipy",
+    "opencv-python-headless",
+    "pillow",
+    "pyyaml",
+    "pandas",
+    "h5py",
+]
+
+[project.optional-dependencies]
+# GPU stack on molab; mirrors DAAAM/requirements.txt (torch cu128 is installed separately, see README)
+gpu = [
+    "boxmot @ git+https://github.com/nicogorlo/boxmot.git",
+    "dam @ git+https://github.com/nicogorlo/describe-anything-batch.git",
+    "ultralytics",
+    "open_clip_torch",
+    "sentence_transformers==4.1.0",
+    "transformers==4.55.4",
+    "accelerate",
+    "cvxpy",
+    "cvxopt",
+]
+data = ["fsspec", "aiohttp", "huggingface_hub[hf_transfer]"]
+dsg = ["spark-dsg==1.1.3"]
+test = ["pytest", "spark-dsg==1.1.3"]
+
+[project.scripts]
+twinmem4d = "twinmem4d.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "twinmem4d.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"twinmem4d.third_party.daaam" = ["LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

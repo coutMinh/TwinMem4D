@@ -1,0 +1,64 @@
+# DAAAM PipelineConfig for LIBERO-Mem agentview (256x256), used only by the full backend run.
+# Same keys as DAAAM/config/pipeline_config.yaml. Paths are relative to the DAAAM checkout
+# (segmentation: <DAAAM>/checkpoints/, <DAAAM>/config/). Deviations from upstream:
+#   PyTorch FastSAM-x instead of a TensorRT engine; imgsz 256; min mask area 300 -> 50 px;
+#   OSNet .pt ReID instead of clip_general.engine; depth bounds for a table, not a room.
+
+segmentation:
+  model_name: "fastsam/FastSAM-x.pt"
+  model_config_path: "fastsam/fastsam_config.yaml"
+  device: "cuda"
+  min_mask_region_area: 50
+  polygon_epsilon_factor: 0.001
+  imgsz: [256, 256]
+
+tracking:
+  device: "cuda"
+  track_buffer: 30
+  enable_temporal_history: true
+  reid_weights: "checkpoints/reid_weights/osnet_x0_25_msmt17.pt"
+  with_reid: true
+  reid_half: false
+
+grounding:
+  agent_model_name: "gpt-5-mini"   # unused by the DAM worker
+  query_interval_frames: 90
+  cuda_device: null
+  enable_perframe_clip_features: false
+
+workers:
+  num_assignment_workers: 1
+  num_grounding_workers: 1
+  assignment_worker: "min_frames_max_size"
+  grounding_worker: "dam_multi_image"
+  assignment_config:
+    min_obs_per_track: 8
+    N_masks_per_batch: 64
+    min_frame_margin_slack: 1
+    min_mask_region_area: 50
+    max_mask_region_area: 16384
+    position_score_weight: 0.5
+    size_score_weight: 0.5
+  dam_grounding_config:
+    dam_model_path: "nvidia/DAM-3B"
+    dam_conv_mode: "v1"
+    dam_prompt_mode: "focal_prompt"
+    multi_image_min_n_masks: 32
+    sentence_embedding_model_name: "sentence-transformers/sentence-t5-xl"
+    enable_selectframe_clip_features: true
+    selectframe_clip_model_name: "ViT-L-14"
+    selectframe_clip_model_dataset: "openai"
+    selectframe_clip_backend: "openclip"
+
+depth:
+  depth_lb: 0.1
+  depth_ub: 3.0
+
+scene_graph:
+  defer_dsg_processing: true
+  enable_background_objects: true
+
+semantic_config_path: "config/labels_pseudo.yaml"
+labelspace_colors_path: "config/labels_pseudo.csv"
+hierarchical_optimization: true
+output_dir: "output"

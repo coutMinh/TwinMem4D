@@ -1,0 +1,15 @@
+# Fields of twinmem4d.eval.memory_eval.MemoryEvalConfig.
+space: 3d                      # "2d" if the L2 camera gate fails (static camera, image-plane memory)
+methods: [raw, reconcile_proxy, twin_aware]
+keep_categories: [bowl, plate]
+min_observations: 5
+queries:
+  offset: 10                   # query 10 frames after each GT move ends
+  on_plate_radius_px: 25.0
+  plate_merge_px: 10.0         # must stay below the plate spacing in pixels
+  min_visible_area: 30
+  category: bowl
+  space: 3d                    # keep equal to `space`
+method_overrides:
+  reconcile_proxy: {}          # e.g. {max_distance: 0.05, min_cosine: 0.8}
+  twin_aware: {}               # e.g. {lambda_s: 1.0, max_cost: 3.0}

@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+build/
+dist/
+
+# large or generated artefacts live outside git (anchored: src/twinmem4d/data/ is code)
+/checkpoints/
+/data/
+/results/
+/outputs/
+*.engine
+*.pt
+*.h5
+*.hdf5
+
+.env

@@ -1,0 +1,40 @@
+# DAAAM front-end on LIBERO-Mem agentview (256x256). Fields of twinmem4d.frontend.runner.FrontendConfig.
+# Values that differ from DAAAM's room-scale defaults are marked (dev) and go into reports/01_reproduction.md.
+fastsam_checkpoint: checkpoints/FastSAM-x.pt
+imgsz: [256, 256]              # (dev) multiple of 32; try [512, 512] if masks are poor (plan risk table)
+min_mask_region_area: 50       # (dev) DAAAM: 300 px at 640x480
+max_mask_region_area: 16384    # drop table/background masks (> 1/4 of the frame)
+fastsam_conf: 0.3
+fastsam_iou: 0.5
+polygon_epsilon_factor: 0.001
+
+reid_weights: checkpoints/osnet_x0_25_msmt17.pt   # (dev) DAAAM: clip_general.engine (TensorRT)
+with_reid: true
+reid_half: false
+track_buffer: 30
+
+depth_lb: 0.1                  # (dev) DAAAM: 0.25 m
+depth_ub: 3.0                  # (dev) DAAAM: 5.0 m
+
+query_interval_frames: 90
+first_query_frame: 60
+multi_image_min_n_masks: 32
+frame_selection:
+  min_obs_per_track: 8
+  N_masks_per_batch: 64
+  min_frame_margin_slack: 1
+  min_mask_region_area: 50
+  position_score_weight: 0.5
+  size_score_weight: 0.5
+  solver_time_limit_s: 10.0
+
+dam_model_path: nvidia/DAM-3B
+dam_conv_mode: v1
+dam_prompt_mode: focal_prompt
+clip_model: ViT-L-14
+clip_pretrained: openai
+sentence_model: sentence-transformers/sentence-t5-xl
+
+device: cuda
+frame_stride: 1
+max_frames: null
